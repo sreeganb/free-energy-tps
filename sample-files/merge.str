@@ -1,0 +1,118 @@
+* merge.str
+
+! merge forward and backward trajectories
+! IN:  fstep. bstep. tlength
+! OUT: NEW.DCD, NEW.VEL
+lower
+
+set bstep @nstep
+set fstep @nstep
+calc tlength @bstep + @fstep + 1
+
+!*** first DCD ***
+! read BSHOT.DCD backwards from bstep to 1, write each slice in a CRD
+set a @bstep
+label loop
+  open read unit 41 file name bshot.dcd 
+  traj firstu 41 nunit 1 begin @a stop @a skip 1 
+  traj read
+  open write unit 42 card name @a.crd
+  write coor card unit 42
+  decr a by 1
+if @a .ge. 1 goto loop
+ 
+! read FSHOT.DCD from 1 to fstep, write each slice in a CRD
+set a 1
+label floop
+  open read unit 21 file name fshot.dcd 
+  traj firstu 21 nunit 1 begin @a stop @a skip 1 
+  traj read
+  open write unit 22 card name f@a.crd
+  write coor card unit 22
+  incr a by 1
+if @a .le. @fstep goto floop
+
+! create new.dcd with length tlength
+open write unit 53 file name "new.dcd"
+traj iwrite 53 nfile @tlength skip 1
+
+!*** now CRD ***
+set a @bstep
+label loop2
+  open read unit 44 card name @a.crd
+  read coor card unit 44
+  traj write
+  decr a by 1
+if @a .ge. 1 goto loop2 
+
+open read unit 43 card name "slice.crd"
+read coor card unit 43
+traj write
+
+set a 1
+label floop2
+  open read unit 24 card name f@a.crd
+  read coor card unit 24
+  traj write
+  incr a by 1
+if @a .le. @fstep goto floop2 
+close unit 53
+
+!*** finally VEL ***
+set a @bstep
+label vloop
+  open read unit 41 file name bshot.vel
+  traj firstu 41 nunit 1 begin @a stop @a skip 1 
+  traj read
+  open write unit 42 card name @a.crd
+  write coor card unit 42
+  decr a by 1
+if @a .ge. 1 goto vloop
+ 
+set a 1
+label vfloop
+  open read unit 21 file name fshot.vel
+  traj firstu 21 nunit 1 begin @a stop @a skip 1 
+  traj read
+  open write unit 22 card name f@a.crd
+  write coor card unit 22
+  incr a by 1
+if @a .le. @fstep goto vfloop
+
+! ***********************************
+! create new.dcd with length tlength
+! ***********************************
+open write unit 63 file name "new.vel"
+traj iwrite 63 nfile @tlength skip 1
+
+! read the BSHOT CRD files from bstep to 1, write them in new.dcd
+set a @bstep
+label vloop2
+  open read unit 44 card name @a.crd
+  read coor card unit 44
+  scal x mult -1
+  scal y mult -1
+  scal z mult -1
+  traj write
+  decr a by 1
+if @a .ge. 1 goto vloop2 
+
+! write slice.crd in new.dcd
+open read unit 43 card name "finalvel.vel"
+read coor card unit 43
+traj write
+
+!read the FSHOT CRD files from 1 to fstep, write them in new.dcd
+set a 1
+label vfloop2
+  open read unit 24 card name f@a.crd
+  read coor card unit 24
+  traj write
+  incr a by 1
+if @a .le. @fstep goto vfloop2 
+
+system "rm -f *.crd"
+close unit 41
+
+return
+

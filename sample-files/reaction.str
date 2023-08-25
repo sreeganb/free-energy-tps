@@ -1,0 +1,131 @@
+* reaction.str
+
+!------------------------------------------------------------------------------
+! Check the trajectory for any frames that are within the specified window
+! while making sure that the molecules are not in some non-physical configuration
+! This one is for the reactant region:
+! 1) Make sure that the C-H bond distances are not larger 
+!    than a predetermined number (say 2.0 A). 
+! 2) Run a few trajectories with this acceptance criteria and check what the
+!    acceptance rate is. 
+!------------------------------------------------------------------------------
+lower
+
+set ind 0
+set ina 0
+set forw 0
+set back 0
+set inaf 0
+set inbf 0
+set inal 0
+set inbl 0
+set non_a 0
+set non_b 0
+
+read psf card name nneutr.psf
+read coor card name NNEUTR.CRD
+
+set CURRTRAJF fshot.dcd
+set CURRTRAJB bshot.dcd
+
+!----------------------------------------------------------------------
+! Start the loop to check if there is a time frame in the window
+! For the forward shot
+!----------------------------------------------------------------------
+open read unit 21 file name fshot.dcd
+
+traj iread 21
+
+set q 1.0 
+set d 1.0
+set chk 0.0
+set chkreac 0.0
+set chkprod 0.0
+set z @nstep
+set maxhcdis mxxxhc
+set minohdis minnoh
+
+!----------------------------------------------------------------------
+! For the forward trajectory, check if there are any frames within the
+! window while making sure that the reactants are intact
+!----------------------------------------------------------------------
+label chkloop1
+    traj read
+
+    quick sele segid QMMM .and. (type C8) end sele segid QMMM .and. (type H5) end
+    set dishc ?DIST
+    
+    quick sele segid QMMM .and. (type OH2') end sele segid QMMM .and. (type H5) end
+    set disoh ?DIST
+
+    
+    set ordpm @dishc
+    decr ordpm by @disoh
+    
+    if ordpm .ge. @winmin then 
+        if ordpm .le. @winmax then 
+            incr chk by 1.0
+        endif
+    endif
+    if dishc .le. @maxhcdis then
+        incr chkreac by 1.0
+    Endif
+    if disoh .ge. @minohdis then
+        incr chkprod by 1.0
+    endif
+    
+    incr q by @d
+if q le @z goto chkloop1
+!----------------------------------------------------------------------
+! Start the loop to check if there is a time frame in the window
+!----------------------------------------------------------------------
+open read unit 21 file name bshot.dcd
+
+traj iread 21
+
+set q 1.0 
+set d 1.0
+set z @nstep
+
+label chkloop2
+    traj read
+
+    quick sele segid QMMM .and. (type C8) end sele segid QMMM .and. (type H5) end
+    set dishc ?DIST
+    
+    quick sele segid QMMM .and. (type OH2') end sele segid QMMM .and. (type H5) end
+    set disoh ?DIST
+
+    set ordpm @dishc
+    decr ordpm by @disoh
+    
+    if ordpm .ge. @winmin then 
+        if ordpm .le. @winmax then 
+            incr chk by 1.0
+        endif
+    endif
+    if dishc .le. @maxhcdis then
+        incr chkreac by 1.0
+    endif
+    if disoh .ge. @minohdis then
+        incr chkprod by 1.0
+    endif
+    
+    incr q by @d
+if q le @z goto chkloop2
+!------------------------------------------------------------------------------
+! Now we know if chk > 0 it guarantees at least one frame within the window
+!------------------------------------------------------------------------------
+if @chk .ge. 1 then
+    if  @chkreac .ge. 8 then
+        if @chkprod .ge. 8 then
+            stream merge.str
+            stream distance.str
+            stop
+        endif
+    endif
+endif
+
+stream bonds.str
+
+return

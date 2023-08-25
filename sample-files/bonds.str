@@ -1,0 +1,80 @@
+lower
+
+define sit1 sele segid QMMM .and. (type OH2') END 
+define sit2 sele segid QMMM .and. (type H5) END
+define sit3 sele segid QMMM .and. (type C8) END
+define sit4 sele segid QMMM .and. (type H5) END
+
+! open output data file
+open unit 40 card write name "@NONREACT_hc.dat"
+open unit 41 card write name "@NONREACT_oh.dat"
+
+! ********* backward
+set z  @bstep
+set q  @z
+set d  1 
+
+OPEN READ UNIT 31 FILE NAME BSHOT.DCD 
+
+label btrajloop
+traj firstu 31 nunit 1 begin @q stop @q
+traj read
+
+coor axis sele sit3 end sele sit4 end
+write title unit 40
+* ?raxi
+*
+
+coor axis sele sit1 end sele sit2 end 
+write title unit 41
+* ?raxi
+*
+
+decr q by @d
+if q ge 1 goto btrajloop
+
+! ********* shooting point
+
+open read unit 43 card name "slice.crd"
+read coor card unit 43
+
+coor axis sele sit3 end sele sit4 end
+write title unit 40
+* ?raxi
+*
+
+coor axis sele sit1 end sele sit2 end 
+write title unit 41
+* ?raxi
+*
+
+! ********* forward
+set q  1
+set d  1
+set z  @fstep
+
+open read unit 21 file name fshot.dcd
+traj iread 21 nread 1
+
+label trajloop
+
+traj read
+
+coor axis sele sit3 end sele sit4 end
+write title unit 40
+* ?raxi
+*
+
+coor axis sele sit1 end sele sit2 end 
+write title unit 41
+* ?raxi
+*
+
+incr q by @d
+if q le @z goto trajloop
+
+close unit 40
+close unit 41
+
+return
+

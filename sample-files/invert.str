@@ -1,0 +1,50 @@
+* invert.str
+! diagonalizes 3x3 matrix of moment of inertia
+! IN: Ixx,...,Izz 
+! OUT: angvx, angvm angvy
+
+open write unit 26 card name "momint.dat"
+write title unit 26
+* @Ixx  @Ixy  @Ixz
+* @Iyx  @Iyy  @Iyz
+* @Izx  @Izy  @Izz 
+close unit 26
+
+set a11 @Ixx
+set a12 @Ixy
+set a13 @Ixz
+set a21 @a12
+set a22 @Iyy
+set a23 @Iyz
+set a31 @a13
+set a32 @a23
+set a33 @Izz
+
+calc det @a11*(@a33*@a22-@a32*@a23)
+calc det @det-@a21*(@a33*@a12-@a32*@a13)
+calc det @det+@a31*(@a23*@a12-@a22*@a13)
+
+calc c11  (@a33*@a22-@a32*@a23)/@det
+calc c12 -(@a33*@a12-@a32*@a13)/@det
+calc c13  (@a23*@a12-@a22*@a13)/@det
+
+calc c21 -(@a33*@a21-@a31*@a23)/@det   
+calc c22  (@a33*@a11-@a31*@a13)/@det 
+calc c23 -(@a23*@a11-@a21*@a13)/@det
+
+calc c31  (@a32*@a21-@a31*@a22)/@det  
+calc c32 -(@a32*@a11-@a31*@a12)/@det  
+calc c33  (@a22*@a11-@a21*@a12)/@det  
+
+calc angvx @c11*@Lx+@c12*@Ly+@c13*@Lz
+calc angvy @c21*@Lx+@c22*@Ly+@c23*@Lz
+calc angvz @c31*@Lx+@c32*@Ly+@c33*@Lz
+
+open write unit 27 card name "angv.dat"
+write title unit 27
+* @angvx
+* @angvy
+* @angvz
+close unit 27
+
+return

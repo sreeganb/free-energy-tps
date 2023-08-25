@@ -1,0 +1,138 @@
+bomblev 0
+
+!****************** assign random velocities ******************************
+
+! one-step forward
+open unit 31 card read name "slice.crd"
+read coor card unit 31
+close unit 31
+
+! assign velocities randomly
+open write unit 32 file name pert.vel
+
+dynamics leap verl strt -
+time @step nstep 1 -
+firstt 300.0 finalt 300.0 -
+ichecw 1 ieqfrq 0 ihbfrq -1 -
+iasors 1 iasvel 1 -
+nsavv 1 -
+iunrea -1 iunwri -1 iuncrd -1 iunvel 32 kunit -1
+
+! last slice of 1-step trajectory
+open unit 33 card write name "pert.crd"
+write coor card unit 33
+close unit 33
+
+! we have velocities at time=1, we want to find them at time=0
+open read unit 34 file name pert.vel
+traj firstu 34 nunit 1 begin 1 stop 1
+traj read
+write coor card name "pertk.vel" comp
+close unit 34
+
+scal xcomp mult -1
+scal ycomp mult -1
+scal zcomp mult -1
+
+open unit 35 card write name "pertbk.vel"
+write coor card unit 35 
+close unit 35
+
+! 1 step backwards
+open unit 36 card read name "pert.crd"
+read coor card unit 36
+close unit 36
+
+open unit 37 card read name "pertbk.vel"
+read coor card unit 37 comp
+close unit 37
+
+open write unit 38 file name pertbkf.vel
+
+dynamics leap verl strt -
+time @step nstep 1 -
+firstt 300.0 finalt 300.0 -
+ichecw 1 ieqfrq 0 ihbfrq -1 -
+iasors 1 iasvel 0 -
+nsavv 1 -
+iunrea -1 iunwri -1 iuncrd -1 iunvel 38 kunit -1
+
+open read unit 39 file name pertbkf.vel
+traj firstu 39 nunit 1 begin 1 stop 1
+traj read
+write coor card name "pertbk.vel" comp
+close unit 39
+
+! reverse velocities because we went backwards
+scal xcomp mult -1
+scal ycomp mult -1
+scal zcomp mult -1
+
+! random velocities at time=0
+open unit 40 card write name "pertfinal.vel"
+write coor card unit 40 
+close unit 40
+
+!********************   add perturbation to original******************************
+
+! perturbation velocity
+open unit 41 card read name "pertfinal.vel"
+read coor card unit 41 
+close unit 41
+! perturbation factor
+coor scal fact @PERTURB 
+
+! add to the original velocities
+open read unit 42 card name before.vel
+read coor card unit 42 comp
+close unit 42
+
+scal xcom sum x 
+scal ycom sum y
+scal zcom sum z
+
+! random velocities at time=0
+open unit 43 card write name "pertvfinal.vel"
+write coor card unit 43 comp
+close unit 43
+
+!*******************  rescale velocities ******************************
+
+open read unit 44 card name "slice.crd"
+read coor card unit 44
+close unit 44
+
+! find new KE
+open unit 45 card read name pertvfinal.vel"
+read coor card unit 45 comp
+close unit 45
+
+dynamics leap verl strt -
+time @step nstep 1 -
+firstt 300.0 finalt 300.0 -
+tref 300.0  -
+ichecw 1 ieqfrq 0 ihbfrq -1 -
+iasors 1 iasvel 0
+
+! rescale to KE that corresponds to 300 K
+set newke ?TOTK
+!   23108.17155  307.31681
+set ke300 28615.8
+
+calc ratioT2 @ke300 / @newke
+! rescaling factor for velocities
+calc ratioT sqrt(@ratioT2)
+
+open read unit 46 card name "pertvfinal.vel"
+read coor card unit 46
+close unit 46
+
+scal x mult @ratioT
+scal y mult @ratioT
+scal z mult @ratioT
+
+open unit 48 card write name "finalvel.vel"
+write coor card unit 48 
+close unit 48
+
+return

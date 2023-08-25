@@ -1,0 +1,46 @@
+* distance.str
+
+! plots distances
+! IN:  slice.crd NEW.DCD
+! OUT:
+lower
+
+read psf card name nneutr.psf
+read coor card name NNEUTR.CRD
+
+set CURRTRAJ new.dcd
+!if @back .eq. 1 then
+!  set CURRTRAJ RNEW.DCD
+!endif
+
+open unit 21 file read name @CURRTRAJ
+
+traj iread 21 nread 1
+
+open unit 12 card write name dis_hc@nonreact.dat
+open unit 13 card write name dis_oh@nonreact.dat
+
+set q 1.0
+set d 1.0
+set z @tlength
+
+label disloop
+traj read
+
+coor axis sele segid QMMM .and. (type C8) end sele segid QMMM .and. (type H5) end
+write title unit 12
+* ?raxi
+*
+
+coor axis sele segid QMMM .and. (type OH2') end sele segid QMMM .and. (type H5) end
+write title unit 13
+* ?raxi
+*
+
+incr q by @d
+if q le @z goto disloop
+
+close unit 12
+close unit 13
+
+return

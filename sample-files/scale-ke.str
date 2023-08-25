@@ -1,0 +1,102 @@
+* restore-ke.str
+
+! Old velocities are in main coordinate set.
+! Perturbed velocities (old + deltav) in comp coor set
+! at end of script, scale factor is in comp coor set at each atom
+
+
+! Square them
+scal x pow2
+scal y pow2
+scal z pow2
+
+!multiply by 0.5
+scal x mult 0.5
+scal y mult 0.5
+scal z mult 0.5
+
+!multiply by mass
+scal x prod mass
+scal y prod mass
+scal z prod mass
+
+!Average over all velocities(squared)
+scal x aver all
+scal y aver all
+scal z aver all
+
+! multiply average velocities by N to get sum of v**2's
+scal x mult @ATOM
+scal y mult @ATOM
+scal z mult @ATOM
+
+! Add sum of component velocities
+scal y sum x
+scal z sum y
+
+!copy z to x and y
+scal x copy z
+scal y copy z
+
+!at this point, we have sum of old KE in all main
+! take square root
+scal x sqrt
+scal y sqrt
+scal z sqrt
+
+!************Now, handle comparison coordinates, i.e. perturbed vels******
+
+! Start by squaring velocities
+scal xcomp pow2
+scal ycomp pow2
+scal zcomp pow2
+
+!KE = 0.5 m* v**2
+scal xcomp mult 0.5
+scal ycomp mult 0.5
+scal zcomp mult 0.5
+
+! multiply by masses
+scal xcomp prod mass
+scal ycomp prod mass
+scal zcomp prod mass
+
+!average all v**2's
+scal xcomp aver all
+scal ycomp aver all
+scal zcomp aver all
+
+!multiply average velocity by N to get total velocity
+scal xcomp mult @ATOM
+scal ycomp mult @ATOM
+scal zcomp mult @ATOM
+
+! add components to each other
+scal ycomp sum xcomp
+scal zcomp sum ycomp
+
+scal xcomp copy zcomp
+scal ycomp copy zcomp
+
+!square roots
+scal xcomp sqrt
+scal ycomp sqrt
+scal zcomp sqrt
+
+! Now we have sqrt(sum(v_olds)) in main coor set
+! and sqrt(sum(v_news)) in comp coor set
+! scale factor is main/comp
+! So to place scale factor in comp...
+! First, take reciprocal of comp coors
+scal xcomp reci
+scal ycomp reci
+scal zcomp reci
+
+!then multiply
+scal xcomp prod x
+scal ycomp prod y
+scal zcomp prod z
+
+!now, scale factors are in comp coordinate set
+
+return

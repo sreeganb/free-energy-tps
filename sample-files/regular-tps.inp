@@ -1,0 +1,148 @@
+*FILENAME: regular-tps.inp
+
+bomblev 0
+
+!******************************************************************************
+set toppar /xdisk/sschwartz/sreegb/toppar
+
+read rtf card name @toppar/top_all36_prot.rtf
+read rtf card name @toppar/top_all36_carb.rtf append
+read para card name @toppar/par_all36_prot.prm flex
+read para card name @toppar/par_all36_carb.prm flex append 
+stream @toppar/toppar_water_ions.str
+read rtf card name @toppar/top_all36_na.rtf append
+read para card name @toppar/par_all36_na.prm flex append
+stream @toppar/stream/na/toppar_all36_na_nad_ppi.str
+read rtf card name @toppar/top_all36_cgenff.rtf append
+read para card name @toppar/par_all36_cgenff.prm flex append
+stream substrate.str
+!******************************************************************************
+read psf card name nneutr.psf
+read coord card name NNEUTR.CRD
+!******************************************************************************
+! SETUP NONBOND
+nbond inbfrq -1 elec fswitch vdw vswitch cutnb 14 ctofnb 12 ctonnb 10 ctexnb 200
+energy
+
+!******************************************************************************
+define qm sele segid QMMM end
+squantum sele qm end pm3 glnk sele (segid QMMM .and. type CB) .or. -
+    (segid QMMM .and. type CB') end charge -1.0 remo 
+
+cons harm clear
+
+set step 0.001
+
+set RUN 0          ! index pf reactive trajectory
+set NONREACT 1     ! index of unsuccesful shootings
+set MAXRUN 75      ! maximum number of shootings
+
+set PERTURB 0.15
+set nstep 10 
+calc tlength @nstep + @nstep + 1
+set winmin wwmi
+set winmax wwma
+set seed ranseed 
+
+irand series 1 setup begin ibeg endi iend seed @seed
+! ***************************************************************************************
+! loop, we go over it depending on values of distances
+! ***************************************************************************************
+label bigloop
+
+if @NONREACT .gt. @MAXRUN then
+  stop
+endif
+
+! read previous trajectory 
+open read unit 11 file name ../parent-traj/new177.dcd
+open read unit 12 file name ../parent-traj/new177.vel
+!open read unit 11 file name ./results/new@RUN.dcd
+!open read unit 12 file name ./results/new@RUN.vel
+
+! pick a slice randomly
+irand series 1
+set slice ?iran
+
+traj firstu 11 nunit 1 begin @slice stop @slice
+traj read
+write coor card name "slice.crd"    !coor in charmm format
+
+traj firstu 12 nunit 1 begin @slice stop @slice
+traj read
+write coor card name "before.vel"
+
+stream perturb.str
+
+read coor card name "slice.crd"
+read coor card name "finalvel.vel" comp
+
+! ***************************************************************************************
+! run the new trajectory 
+! ***************************************************************************************
+!***  forward shooting
+
+set shosh fshot   
+set fstep @nstep
+
+open write unit 13 file name @shosh.dcd
+open write unit 14 file name @shosh.vel
+open write unit 15 card name @shosh.ene
+
+shake bonh sele .not. segid qmmm end
+
+dynamics leap verl strt - 
+time @step nstep @nstep -
+tstruc 300 firstt 300.0 finalt 300.0 -
+ichecw 1 ieqfrq 0 ihbfrq -1 -
+iasors 1 iasvel 0 -
+nsavc 1 nsavv 1 nprint 1 isvfrq 1 -
+iunrea -1 iunwri -1 iuncrd 13 iunvel 14 kunit 15
+
+open unit 16 card write name "last.crd"
+write coor card unit 16
+close unit 16
+
+!******* backward shooting
+
+label back
+
+read coor card name "slice.crd"
+read coor card name "finalvel.vel" comp
+
+scal xcomp mult -1
+scal ycomp mult -1
+scal zcomp mult -1
+
+open unit 17 card write name "finalvelbk.vel"
+write coor card unit 17 comp
+
+set shosh bshot
+set bstep @nstep
+
+open write unit 18 file name @shosh.dcd
+open write unit 19 file name @shosh.vel
+open write unit 20 card name @shosh.ene
+
+dynamics leap verl strt - 
+time @step nstep @nstep -
+tstruc 300 firstt 300.0 finalt 300.0 -
+ichecw 1 ieqfrq 0 ihbfrq -1 -
+iasors 1 iasvel 0 -
+nsavc 1 nsavv 1 nprint 1 isvfrq 1 -
+iunrea -1 iunwri -1 iuncrd 18 iunvel 19 kunit 20
+
+open unit 21 card write name "first.crd"
+write coor card unit 21
+close unit 21
+
+! merge forward and backward trajectories
+! IN:  fstep. bstep. tlength
+! OUT: NEW.DCD, NEW.VEL
+stream reaction.str
+
+incr NONREACT by 1
+
+goto bigloop
+
+stop
